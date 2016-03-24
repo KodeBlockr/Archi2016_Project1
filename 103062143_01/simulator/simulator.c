@@ -37,7 +37,7 @@ void bgtz();
 void j();
 void jal();
 void printRegister();
-int toBigEndian(unsigned int);
+int BigEndian(unsigned int);
 unsigned int imemory[5000];
 unsigned int carryAddress;
 unsigned int temp;
@@ -48,10 +48,10 @@ int funct, rs, rt, rd, iCycle = 0, dCycle = 0, cycle = 0, Cshamt, CimmediateUnsi
 short Cimmediate;
 
 int main()
-{	
+{
 	//Initial
-	memset(iMemory,0,5000);
-	memset(dMemory,0,5000);
+	memset(imemory,0,5000);
+	memset(dmemory,0,5000);
 	memset(reg,0,100);
 	FILE *iimage;
 	FILE *dimage;
@@ -61,47 +61,47 @@ int main()
 	writeSnapshot=fopen("snapshot,rpt","w");
 	writeError=fopen("error_dump.rpt","w");
 	fread(&pc,sizeof(int),1,iimage);
-	pc=toBidEndian(pc);
+	pc=BigEndian(pc);
 	fread(&iNum,sizeof(int),1,iimage);
-	iNum=toBigEndian(iNum);
+	iNum=BigEndian(iNum);
 	iCycle=pc;
 	i=pc;
 	num=0;
 	while(num!=iNum){
-		fread(&iMemory[iCycle],sizeof(int),1,iimage);
+		fread(&imemory[iCycle],sizeof(int),1,iimage);
 		iCycle=iCycle+4;
 		num++;
 	}
 	fread(&reg[29],sizeof(int),1,dimage);
-	reg[29]=toBidEndian(reg[29]);
+	reg[29]=BigEndian(reg[29]);
 	sp=reg[29];
 	fread(&dNum,sizeof(int),1,dimage);
-	dNum=toBigEndian(dNum);
+	dNum=BigEndian(dNum);
 	while(dCycle!=dNum){
-		fread(&dMemory[dCycle],sizeof(int),dimage);
+		fread(&dmemory[dCycle],sizeof(int),1,dimage);
 		dCycle++;
 	}
 	fclose(iimage);
 	fclose(dimage);
-	//Print Register	
+	//Print Register
 	printRegister();
 	for(i=pc;i<iCycle;i+=4){
-		iMemory[i]=toBigEndian(iMemory[i]);
+		imemory[i]=BigEndian(imemory[i]);
 	}
 	for(i=0;i<dCycle;i++){
-		dMemory[i]=toBigEndian(dMemory[i]);
+		dmemory[i]=BigEndian(dmemory[i]);
 	}
 	for(i=pc;i<iCycle;){
 		cycle++;
-		opcode=iMemory[i]>>26;
-		funct=(iMemory[i]<<26)>>26;
-		rs=(iMemory[i]<<6)>>27;
-		rt=(iMemory[i]<<11)>>27;
-		rd=(iMemory[i]<<16)>>27;
-		Cshamt=(iMemory[i]<<21)>>27;
-		Cimmediate=((iMemory[i]<<16)>>16);
-		CimmediateUnisgned=Cimmediate&0x0000FFFF;
-		Caddress=(iMemory[i]<<6)>>6;
+		opcode=imemory[i]>>26;
+		funct=(imemory[i]<<26)>>26;
+		rs=(imemory[i]<<6)>>27;
+		rt=(imemory[i]<<11)>>27;
+		rd=(imemory[i]<<16)>>27;
+		Cshamt=(imemory[i]<<21)>>27;
+		Cimmediate=((imemory[i]<<16)>>16);
+		CimmediateUnsigned=Cimmediate&0x0000FFFF;
+		carryAddress=(imemory[i]<<6)>>6;
 		i = i+4;
 		if(opcode==0x00){
 			if(funct==0x20)add();
@@ -143,20 +143,19 @@ int main()
 		//Print Register
 		printRegister();
 	}
-	fclose(writeSnapShot);
+	fclose(writeSnapshot);
 	fclose(writeError);
 
 
 
 }
-int toBigEndian(unsigned int K)
-{
-	a=K>>24;
-	b=((k<<8)>>24)<<8;
-	c=((k>>8)<<24)>>8;
-	d=k<<24;
-	k=a+b+c+d;
-	return k;
+int BigEndian(unsigned int k){
+    a=k>>24;
+    b=((k<<8)>>24)<<8;
+    c=((k>>8)<<24)>>8;
+    d=k<<24;
+    k=a+b+c+d;
+    return k;
 }
 void add()
 {
@@ -167,7 +166,7 @@ void add()
 	int regTmp_tmp=regTmp>>31;
 	int rsTmp=reg[rs]>>31;
 	int rtTmp=reg[rt]>>31;
-	if((rsTmp==rtTmp)&&(regTmp_tmp!=reTmp)){
+	if((rsTmp==rtTmp)&&(regTmp_tmp!=rsTmp)){
 		fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
 	}
 	reg[rd]=regTmp;
@@ -177,10 +176,395 @@ void add()
 	}
 
 }
-void addiu(){
+void addu(){
 	if(rd==0){
-		fprintf(writeError, "In cycle %d: Write &0 Error\n", cycle);
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+	}
+	int regTemp = reg[rs]+reg[rt];
+	reg[rd] = regTemp;
+	if(rd==0){
+		reg[rd]=0;
+		return;
 	}
 }
+void sub(){
+	if(rd==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+	}
+	int regTemp=reg[rs]-reg[rt];
+	int regTemp_Temp=regTemp>>31;
+	int rsTemp=reg[rs]>>31;
+	int rtTemp=(0-reg[rt])>>31;
+	if((rsTemp==rtTemp)&&(regTemp_Temp!=rsTemp)){
+		fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+	}
+	reg[rd]=regTemp;
+	if(rd==0){
+		reg[rd]=0;
+		return;
+	}
+}
+void and(){
+	if(rd==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+	}
+	reg[rd]=reg[rs]&reg[rt];
+}
+void or(){
+	if(rd==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+		return;
+	}
+	reg[rd]=reg[rs]|reg[rt];
+}
+void xor(){
+	if(rd==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+		return;
+	}
+	reg[rd]=reg[rs]^reg[rt];
+}
+void nor(){
+	if(rd==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+		return;
+	}
+	reg[rd]=~(reg[rs]|reg[rt]);
+}
+void nand(){
+	if(rd==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+		return;
+	}
+	reg[rd]=~(reg[rs]&reg[rt]);
+}
+void slt(){
+	if(rd==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+		return;
+	}
+	reg[rd]=(reg[rs]<reg[rt]);
+}
+void sll(){
+	if(rd==0){
+		if(!(rt==0&&Cshamt==0)){
+			fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+			return;
+		}
+	}
+	reg[rd]=reg[rt]<<Cshamt;
+}
+void srl(){
+	if(rd==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+		return;
+	}
+	reg[rd]=reg[rt];
+	for(l=0;l<Cshamt;l++){
+		reg[rd]=(reg[rd]>>1)&0x7FFFFFFF;
+	}
+}
+void sra(){
+	if(rd==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+		return;
+	}
+	reg[rd]=reg[rt]>>Cshamt;
+}
+void jr(){
+	i=reg[rs];
+}
+void addi(){
+	if(rt==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+	}
+	int regTemp=reg[rs]+Cimmediate;
+	int regTemp_Temp=regTemp>>31;
+	int rsTemp=reg[rs]>>31;
+	int CTemp=Cimmediate>>15;
+	if((rsTemp==CTemp)&&(regTemp_Temp!=rsTemp)){
+		fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+	}
+	reg[rt]=regTemp;
+	if(rt==0){
+		reg[rt]=0;
+		return;
+	}
+}
+void addiu(){
+	if(rt==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+	}
+	int regTemp=reg[rs]+Cimmediate;
+	int regTemp_Temp=regTemp>>31;
+	int rsTemp=reg[rs]>>31;
+	int cTemp=Cimmediate>15;
 
-
+	reg[rt]=regTemp;
+	if(rt==0){
+		reg[rt]=0;
+		return;
+	}
+}
+void lw(){
+	if(rt==0){
+        	fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+    	}
+    	tmp=reg[rs]+Cimmediate;
+    	if((reg[rs]>0&&Cimmediate>0&&tmp<0)||(reg[rs]<0&&Cimmediate<0&&tmp>0)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(tmp<0||(tmp+3<0)||(tmp>1023)||(tmp+3)>1023){
+        	fprintf(writeError, "In cycle %d: Address Overflow\n", cycle);
+        	halt=1;
+    	}
+    	if(tmp%4!=0){
+        	fprintf(writeError, "In cycle %d: Misalignment Error\n", cycle);
+        	halt=1;
+    	}
+    	if(halt==1)return;
+    	reg[rt]=dmemory[tmp/4];
+    	if(rt==0){
+        	reg[rt]=0;
+        return;
+    }
+}
+void lh(){
+	if(rt==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+	}
+	tmp=reg[rs]+Cimmediate;
+	int tmpTemp=tmp>>31;
+	int rsTemp=reg[rs]>>31;
+	int cTemp=Cimmediate>>15;
+	if((rsTemp==cTemp)&&(tmpTemp!=rsTemp)){
+		fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+	}
+	if(tmp<0||(tmp+1<0)||(tmp>1023)||(tmp+1)>1023){
+		fprintf(writeError, "In cycle %d: Address Overflow\n", cycle);
+		halt = 1;
+	}
+	if(tmp%2!=0){
+		fprintf(writeError, "In cycle %d: Misalignment Error\n", cycle);
+		halt = 1;
+	}
+	if(halt==1) return;
+	if(rt==0){
+		reg[rt]=0;
+		return;
+	}
+	if(tmp%4==0)tmpSigned=dmemory[tmp/4]>>16;
+	else if(tmp%4==2)tmpSigned=(dmemory[tmp/4]<<16)>>16;
+	if(tmpSigned>>15==1)reg[rt]=tmpSigned|0xFFFF0000;
+	else reg[rt]=tmpSigned;
+}
+void lhu(){
+	if(rt==0){
+		fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+	}
+	tmp=reg[rs]+Cimmediate;
+    	int tmpTmp=tmp>>31;
+    	int rsTmp=reg[rs]>>31;
+    	int cTmp=Cimmediate>>15;
+    	if((rsTmp==cTmp)&&(tmpTmp!=rsTmp)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(tmp<0||(tmp+1<0)||(tmp>1023)||(tmp+1)>1023){
+        	fprintf(writeError, "In cycle %d: Address Overflow\n", cycle);
+        	halt=1;
+    	}
+    	if(tmp%2!=0){
+        	fprintf(writeError, "In cycle %d: Misalignment Error\n", cycle);
+        	halt=1;
+    	}
+    	if(halt==1)return;
+    	if(rt==0){
+        	reg[rt]=0;
+        	return;
+    	}
+    	temp=dmemory[tmp/4];
+    	if(tmp%4==0)temp=temp>>16;
+    	else if(tmp%4==2)temp=(temp<<16)>>16;
+    	reg[rt]=temp;
+}
+void lb(){
+	if(rt==0){
+        	fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+    	}
+    	tmp=reg[rs]+Cimmediate;
+    	int tmpTmp=tmp>>31;
+    	int rsTmp=reg[rs]>>31;
+    	int cTmp=Cimmediate>>15;
+    	if((rsTmp==cTmp)&&(tmpTmp!=rsTmp)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(tmp<0||tmp>1023){
+        	fprintf(writeError, "In cycle %d: Address Overflow\n", cycle);
+        	halt=1;
+    	}
+    	if(halt==1)return;
+    	if(rt==0){
+        	reg[rt]=0;
+        	return;
+    	}
+    	if(tmp%4==0)tmpSigned=dmemory[tmp/4]>>24;
+    	else if(tmp%4==1)tmpSigned=(dmemory[tmp/4]<<8)>>24;
+    	else if(tmp%4==2)tmpSigned=(dmemory[tmp/4]<<16)>>24;
+    	else if(tmp%4==3)tmpSigned=(dmemory[tmp/4]<<24)>>24;
+    	if(tmpSigned>>7==1)reg[rt]=tmpSigned|0xFFFFFF00;
+    	else reg[rt]=tmpSigned;
+}
+void lbu(){
+    	if(rt==0){
+        	fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+    	}
+    	tmp=reg[rs]+Cimmediate;
+    	int tmpTmp=tmp>>31;
+    	int rsTmp=reg[rs]>>31;
+    	int cTmp=Cimmediate>>15;
+    	if((rsTmp==cTmp)&&(tmpTmp!=rsTmp)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(tmp<0||tmp>1023){
+    	    	fprintf(writeError, "In cycle %d: Address Overflow\n", cycle);
+        	halt=1;
+    	}
+    	if(halt==1)return;
+    	if(rt==0){
+        	reg[rt]=0;
+        	return;
+    	}
+    	temp=dmemory[tmp/4];
+    	if(tmp%4==0)temp=temp>>24;
+    	else if(tmp%4==1)temp=(temp<<8)>>24;
+    	else if(tmp%4==2)temp=(temp<<16)>>24;
+    	else if(tmp%4==3)temp=(temp<<24)>>24;
+    	reg[rt]=temp;
+}
+void sw(){
+    	tmp=reg[rs]+Cimmediate;
+    	int tmpTmp=tmp>>31;
+    	int rsTmp=reg[rs]>>31;
+    	int cTmp=Cimmediate>>15;
+    	if((rsTmp==cTmp)&&(tmpTmp!=rsTmp)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(tmp<0||(tmp+3<0)||(tmp>1023)||(tmp+3)>1023){
+        	fprintf(writeError, "In cycle %d: Address Overflow\n", cycle);
+        	halt=1;
+    	}
+    	if(tmp%4!=0){
+        	fprintf(writeError, "In cycle %d: Misalignment Error\n", cycle);
+        	halt=1;
+    	}
+    	if(halt==1)return;
+    	dmemory[tmp/4]=reg[rt];
+}
+void sh(){
+    	tmp=reg[rs]+Cimmediate;
+    	int tmpTmp=tmp>>31;
+    	int rsTmp=reg[rs]>>31;
+    	int cTmp=Cimmediate>>15;
+    	if((rsTmp==cTmp)&&(tmpTmp!=rsTmp)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(tmp<0||(tmp+1<0)||(tmp>1023)||(tmp+1)>1023){
+        	fprintf(writeError, "In cycle %d: Address Overflow\n", cycle);
+        	halt=1;
+    	}
+    	if(tmp%2!=0){
+        	fprintf(writeError, "In cycle %d: Misalignment Error\n", cycle);
+        	halt=1;
+    	}
+    	if(halt==1)return;
+    	tmpSigned=reg[rt]&0x0000FFFF;
+    	if(tmp%4==0)dmemory[tmp/4]=(dmemory[tmp/4]&0x0000FFFF)+(tmpSigned<<16);
+    	else if(tmp%4==2)dmemory[tmp/4]=(dmemory[tmp/4]&0xFFFF0000)+tmpSigned;
+}
+void sb(){
+    	tmp=reg[rs]+Cimmediate;
+    	int tmpTmp=tmp>>31;
+    	int rsTmp=reg[rs]>>31;
+    	int cTmp=Cimmediate>>15;
+    	if((rsTmp==cTmp)&&(tmpTmp!=rsTmp)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(tmp<0||tmp>1023){
+        	fprintf(writeError, "In cycle %d: Address Overflow\n", cycle);
+        	halt=1;
+    	}
+    	if(halt==1)return;
+    	tmpSigned=reg[rt]&0x000000FF;
+    	if(tmp%4==0)dmemory[tmp/4]=(dmemory[tmp/4]&0x00FFFFFF)+(tmpSigned<<24);
+    	else if(tmp%4==1)dmemory[tmp/4]=(dmemory[tmp/4]&0xFF00FFFF)+(tmpSigned<<16);
+    	else if(tmp%4==2)dmemory[tmp/4]=(dmemory[tmp/4]&0xFFFF00FF)+(tmpSigned<<8);
+    	else if(tmp%4==3)dmemory[tmp/4]=(dmemory[tmp/4]&0xFFFFFF00)+tmpSigned;
+}
+void lui(){
+    	if(rt==0){
+        	fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+    	}
+    	else reg[rt]=(int)(CimmediateUnsigned<<16);
+}
+void andi(){
+    	if(rt==0){
+        	fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+    	}
+    	else reg[rt]=reg[rs]&CimmediateUnsigned;
+}
+void ori(){
+    	if(rt==0){
+        	fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+    	}
+    	else reg[rt]=reg[rs]|CimmediateUnsigned;
+}
+void nori(){
+    	if(rt==0){
+        	fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+    	}
+    	else reg[rt]=~(reg[rs]|CimmediateUnsigned);
+}
+void slti(){
+    	if(rt==0){
+        	fprintf(writeError, "In cycle %d: Write $0 Error\n", cycle);
+    	}
+    	else reg[rt]=(reg[rs]<Cimmediate);
+}
+void beq(){
+    	int Cimmediate4=Cimmediate*4;
+    	int pcTmp=i+Cimmediate4;
+    	if((Cimmediate>0&&Cimmediate4<=0)||(Cimmediate<0&&Cimmediate4>=0)||(i>0&&Cimmediate4>0&&pcTmp<0)||(i<0&&Cimmediate4<0&&pcTmp>0)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(reg[rs]==reg[rt])i=pcTmp;
+}
+void bne(){
+    	int Cimmediate4=Cimmediate*4;
+    	int pcTmp=i+Cimmediate4;
+    	if((Cimmediate>0&&Cimmediate4<=0)||(Cimmediate<0&&Cimmediate4>=0)||(i>0&&Cimmediate4>0&&pcTmp<0)||(i<0&&Cimmediate4<0&&pcTmp>0)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(reg[rs]!=reg[rt])i=pcTmp;
+}
+void bgtz(){
+    	int Cimmediate4=Cimmediate*4;
+    	int pcTmp=i+Cimmediate4;
+    	if((Cimmediate>0&&Cimmediate4<=0)||(Cimmediate<0&&Cimmediate4>=0)||(i>0&&Cimmediate4>0&&pcTmp<0)||(i<0&&Cimmediate4<0&&pcTmp>0)){
+        	fprintf(writeError, "In cycle %d: Number Overflow\n", cycle);
+    	}
+    	if(reg[rs]>0)i=pcTmp;
+}
+void j(){
+    	i=((i>>28)<<28)+carryAddress*4;
+}
+void jal(){
+    	reg[31]=i;
+    	i=((i>>28)<<28)+carryAddress*4;
+}
+void printRegister(){
+    	fprintf(writeSnapshot, "cycle %d\n", cycle);
+    	for(k=0;k<32;k++){
+        	fprintf(writeSnapshot, "$%02d: 0x%08X\n",k,reg[k]);
+    	}
+    	fprintf(writeSnapshot, "PC: 0x%08X\n\n\n", i);
+}
